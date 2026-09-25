@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Browser</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:system-ui,sans-serif;background:#171717;color:#eee}body{display:flex;flex-direction:column}.tabs{height:42px;display:flex;align-items:center;gap:4px;padding:5px 8px;background:#202020}.tab{height:32px;min-width:150px;max-width:240px;padding:7px 12px;border-radius:8px 8px 0 0;background:#303030;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tab.active{background:#3b3b3b}.bar{height:48px;display:flex;gap:7px;align-items:center;padding:7px 10px;background:#292929}.btn{border:0;background:#3a3a3a;color:#eee;border-radius:7px;width:34px;height:34px;font-size:17px;cursor:pointer}.btn:hover{background:#4a4a4a}#url{flex:1;height:34px;border:0;border-radius:17px;background:#151515;color:#eee;padding:0 15px;font-size:14px;outline:none}.page{position:relative;flex:1;background:white}#status{position:absolute;z-index:10;left:50%;top:50%;transform:translate(-50%,-50%);color:#222;background:#fff;padding:18px 22px;border-radius:10px;box-shadow:0 5px 30px #0003}.hidden{display:none}#frames{width:100%;height:100%}.frame{width:100%;height:100%;border:0;display:none}.frame.active{display:block}</style>
+</head>
+<body>
+<div class="tabs" id="tabs"></div>
+<div class="bar">
+<button class="btn" id="back">‹</button><button class="btn" id="forward">›</button><button class="btn" id="reload">↻</button>
+<input id="url" value="https://example.com" spellcheck="false" autocomplete="off">
+<button class="btn" id="go">→</button>
+</div>
+<div class="page"><div id="status">Starting…</div><div id="frames"></div></div>
+<script src="/bootstrap-init.js"></script>
+<script>
+(async()=>{
+  const status=document.getElementById('status'), url=document.getElementById('url');
+  const tabs=document.getElementById('tabs'), frames=document.getElementById('frames');
+  const state=[]; let active=0;
+  function show(i){active=i;state.forEach((t,n)=>{t.frame.classList.toggle('active',n===i);t.tab.classList.toggle('active',n===i)});url.value=state[i]?.url||''}
+  function addTab(target='https://example.com'){
+    const i=state.length;
+    const tab=document.createElement('div');tab.className='tab';tab.textContent='New tab';tab.onclick=()=>show(i);tabs.append(tab);
+    const frame=document.createElement('iframe');frame.className='frame';frames.append(frame);
+    const item={tab,frame,url:target};state.push(item);show(i);return item;
+  }
+  async function init(){
+    try{
+      if(typeof initBootstrap!=='function') throw new Error('Bootstrap client did not load');
+      const controller=await initBootstrap();
+      window.scramjetController=controller;
+      status.classList.add('hidden');
+      const item=addTab();
+      const frame=await controller.createFrame();
+      item.scramFrame=frame;
+      frame.mount(item.frame);
+      await frame.go(item.url);
+      item.tab.textContent='Example';
+    }catch(e){console.error(e);status.textContent='Startup failed: '+e.message}
+  }
+  document.getElementById('go').onclick=async()=>{const t=state[active];if(!t?.scramFrame)return;let v=url.value.trim();if(!/^https?:\\/\\//i.test(v))v='https://'+v;t.url=v;await t.scramFrame.go(v);t.tab.textContent=v.replace(/^https?:\\/\\//,'').split('/')[0]};
+  url.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('go').click()});
+  document.getElementById('reload').onclick=()=>state[active]?.scramFrame?.reload();
+  document.getElementById('back').onclick=()=>state[active]?.scramFrame?.back();
+  document.getElementById('forward').onclick=()=>state[active]?.scramFrame?.forward();
+  init();
+})();
+</script>
+</body></html>
